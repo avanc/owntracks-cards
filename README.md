@@ -8,7 +8,7 @@ This webapp can be either used to just create the JSON representation of the car
 
 Demo
 ----
-Just head over to https://avanc.github.io/owntracks-cards, and create a card. For testing, you can connect to a public MQTT broker.
+Just head over to https://avanc.github.io/owntracks-cards, and create a card. For testing, you can connect to a public MQTT broker or configure your own broker by clicking the connection state.
 
 Note: As the github.io page is provided encrypted using https, the websocket also has to be encrypted using SSL/TLS. If your MQTT server does not allow secure connections, just install Owntracks Cards locally (see below).
 

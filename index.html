@@ -9,7 +9,10 @@
 
 
   <link rel="stylesheet" href="3rdparty/css/w3.css">
+  
     
+  <script src="3rdparty/js/paho-mqtt-1.1.0.js" type="text/javascript"></script>
+  
   <script src="3rdparty/js/vue.js"></script>
   <script src="3rdparty/js/vue-router.js"></script>
   <script src="js/mc-vue.js"></script>
@@ -17,40 +20,35 @@
   
   <title>Owntracks Card Editor</title>
 
-  <style>
-    .thumb {
-      height: 75px;
-      border: 1px solid #000;
-      margin: 10px 5px 0 0;
-    }
-  </style>
   
-  <script src="3rdparty/js/paho-mqtt-1.1.0.js" type="text/javascript"></script>
+
 
 </head>
 
 <body>
   <div id="app">
     <div class="w3-card " style="max-width:600px;margin-left: auto;margin-right: auto ">
+    
+      <span v-on:click="mqtt_config.show=!(mqtt_config.show)" class="w3-button">MQTT Broker: <span v-show="mqtt_config.connected==true">Connected</span><span v-show="mqtt_config.connected==false">Disconnected</span></span>
+      <div v-show="mqtt_config.show">
+        <label class="w3-text-gray">Host</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.host" placeholder="hostname">
+        <label class="w3-text-gray">Port</label>
+        <input class="w3-input w3-border" type="text" v-model.number="mqtt_config.port" placeholder="port">
+        <label class="w3-text-gray">SSL</label>
+        <input class="w3-check" type="checkbox" v-model.number="mqtt_config.ssl"><br>
+        <label class="w3-text-gray">Websocket Path</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.path" placeholder="path">
+        <label class="w3-text-gray">Owntracks Topic</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.topic" placeholder="topic">
+        <label class="w3-text-gray">Username</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.username" placeholder="username">
+        <label class="w3-text-gray">Password</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.password" placeholder="password">
+        <button v-on:click="connect">Connect to server</button>
+      </div>
+    
       <input class="w3-input w3-border" type="text" v-model="newTopic" placeholder="owntracks/[username]/[deviceID]/info"><button v-on:click="newCard">New Card</button><br><br>
-    
-      <label class="w3-text-gray">Host</label>
-      <input class="w3-input w3-border" type="text" v-model="mqtt_config.host" placeholder="hostname">
-      <label class="w3-text-gray">Port</label>
-      <input class="w3-input w3-border" type="text" v-model.number="mqtt_config.port" placeholder="port">
-      <label class="w3-text-gray">SSL</label>
-      <input class="w3-check" type="checkbox" v-model.number="mqtt_config.ssl"><br>
-      <label class="w3-text-gray">Websocket Path</label>
-      <input class="w3-input w3-border" type="text" v-model="mqtt_config.path" placeholder="path">
-      <label class="w3-text-gray">Owntracks Topic</label>
-      <input class="w3-input w3-border" type="text" v-model="mqtt_config.topic" placeholder="topic">
-      <label class="w3-text-gray">Username</label>
-      <input class="w3-input w3-border" type="text" v-model="mqtt_config.username" placeholder="username">
-      <label class="w3-text-gray">Password</label>
-      <input class="w3-input w3-border" type="text" v-model="mqtt_config.password" placeholder="password">
-      <button v-on:click="connect">Connect to server</button>
-
-    
     
       <ul class="w3-ul w3-card-4">
         <card :data="card" v-for="card in cards"></card>
@@ -69,6 +67,8 @@
         newTopic: undefined,
         cards: cards,
         mqtt_config: {
+          show: false,
+          connected: false,
           host: "iot.eclipse.org",
           port: 443,
           ssl: true,
@@ -85,23 +85,43 @@
           this.newTopic=undefined;
         },
         connect: function() {
+          var mqtt_config=this.mqtt_config;
+
+          if (client) {
+            client.disconnect();
+          }
+          mqtt_config.connected=false;
+          
           client = new Paho.Client(this.mqtt_config.host, this.mqtt_config.port, this.mqtt_config.path, "");
+          
+          var onConnectionLost = function (responseObject) {
+            console.log("onConnectionLost:"+responseObject.errorMessage);
+            mqtt_config.connected=false;
+          }
           client.onMessageArrived=onMessageArrived;
           client.onConnectionLost=onConnectionLost;
           var mqtt_config=this.mqtt_config;
           
           var onSuccess = function() {
             console.log("Connected");
+            mqtt_config.connected=true;
+            mqtt_config.show=false;
             client.subscribe(mqtt_config.topic);
           }
-          
-          client.connect({
-            reconnect:true,
-            onSuccess: onSuccess,
-            userName : this.mqtt_config.username,
-            password : this.mqtt_config.password,
-            useSSL: this.mqtt_config.ssl
-          });
+
+
+          try {
+            client.connect({
+              reconnect:true,
+              onSuccess: onSuccess,
+              userName : this.mqtt_config.username,
+              password : this.mqtt_config.password,
+              useSSL: this.mqtt_config.ssl
+            });
+          }
+          catch(e) {
+            console.log(e)
+          }
         }
       }
     });
@@ -123,9 +143,7 @@
 
     };
   
-    var onConnectionLost = function (responseObject) {
-      console.log("onConnectionLost:"+responseObject.errorMessage);
-    }
+
     
 
     
