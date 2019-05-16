@@ -26,6 +26,7 @@ var vue_card = Vue.extend({
   methods: {
     deleteCard: function(){
       client.send(this.data.topic, "", 0, true);
+      client.send(this.data.topic.replace("/info", ""), "", 0, true);
     },
     processFile: function(event) {
       var file = event.target.files[0]; 

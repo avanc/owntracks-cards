@@ -39,8 +39,8 @@
         <input class="w3-check" type="checkbox" v-model.number="mqtt_config.ssl"><br>
         <label class="w3-text-gray">Websocket Path</label>
         <input class="w3-input w3-border" type="text" v-model="mqtt_config.path" placeholder="path">
-        <label class="w3-text-gray">Owntracks Topic</label>
-        <input class="w3-input w3-border" type="text" v-model="mqtt_config.topic" placeholder="topic">
+        <label class="w3-text-gray">Owntracks Topic Prefix</label>
+        <input class="w3-input w3-border" type="text" v-model="mqtt_config.topic_prefix" placeholder="topic">
         <label class="w3-text-gray">Username</label>
         <input class="w3-input w3-border" type="text" v-model="mqtt_config.username" placeholder="username">
         <label class="w3-text-gray">Password</label>
@@ -73,7 +73,7 @@
           port: 443,
           ssl: true,
           path: "/mqtt",
-          topic: "owntracks/+/+/info",
+          topic_prefix: "owntracks",
           username: "",
           password: ""
         }
@@ -98,16 +98,51 @@
             console.log("onConnectionLost:"+responseObject.errorMessage);
             mqtt_config.connected=false;
           }
-          client.onMessageArrived=onMessageArrived;
           client.onConnectionLost=onConnectionLost;
-          var mqtt_config=this.mqtt_config;
+
+          var onMessageArrived=function(message) {
+      //       console.log("Received: " + message.destinationName + " : " + message.payloadString);
+            console.log("Received: " + message.destinationName);
+            
+            if (mqttWildcard(message.destinationName, mqtt_config.topic_prefix + "/+/+")) {
+              var topic=message.destinationName+"/info";
+              console.log("Data found");
+              if (!(cards.hasOwnProperty(topic))) {
+                var card = {};
+                card.topic=topic;
+                Vue.set(cards, topic, card);
+                
+              }
+            }
+            else if (mqttWildcard(message.destinationName, mqtt_config.topic_prefix + "/+/+/info")) {
+              console.log("Card found");
+            
+              try {
+                var card = JSON.parse(message.payloadString);
+                card.topic=message.destinationName;
+                Vue.set(cards, message.destinationName, card)
+              } catch (e) {
+                //not a valid JSON, thus using data as string
+              }
+            }
+            else {
+              console.log("Unknown topic found")
+            }
+          };
+          client.onMessageArrived=onMessageArrived;
+          
+          
+          
+          
           
           var onSuccess = function() {
             console.log("Connected");
             mqtt_config.connected=true;
             mqtt_config.show=false;
-            client.subscribe(mqtt_config.topic);
+            client.subscribe(mqtt_config.topic_prefix + "/+/+/info");
+            client.subscribe(mqtt_config.topic_prefix + "/+/+");
           }
+
 
 
           try {
@@ -129,23 +164,37 @@
 
     var client;
   
-    var onMessageArrived=function(message) {
-//       console.log("Received: " + message.destinationName + " : " + message.payloadString);
-      console.log("Received: " + message.destinationName);
-      
-      try {
-        var card = JSON.parse(message.payloadString);
-        card.topic=message.destinationName;
-        Vue.set(cards, message.destinationName, card)
-      } catch (e) {
-        //not a valid JSON, thus using data as string
-      }
-
-    };
   
 
     
+    var mqttWildcard=function(topic, wildcard) { 
+      if (topic === wildcard) {
+          return true;
+      } else if (wildcard === '#') {
+          return true;
+      }
 
+      var t = String(topic).split('/');
+      var w = String(wildcard).split('/');
+
+      var i = 0;
+      for (var lt = t.length; i < lt; i++) {
+        if (w[i] === '#') {
+            return true;
+        } else if (w[i] === '+') {
+            //OK
+        } else if (w[i] !== t[i]) {
+            return null;
+        }
+      }
+
+      if (w[i] === '#') {
+          i += 1;
+      }
+
+      return (i === w.length);
+    }
+    
     
   
     
